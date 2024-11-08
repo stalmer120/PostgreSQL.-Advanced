@@ -105,13 +105,6 @@ d7d16f417fbf   prometheuscommunity/postgres-exporter:v0.10.1   "/bin/postgres_ex
  postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
 ```
 ```
-                                   List of roles
- Role name |                         Attributes                         | Member of
------------+------------------------------------------------------------+-----------
- otus      | Superuser                                                  | {}
- postgres  | Superuser, Create role, Create DB, Replication, Bypass RLS | {}
-```
-```
   List of schemas
   Name  |  Owner
 --------+----------
