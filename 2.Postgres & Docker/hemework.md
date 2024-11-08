@@ -44,7 +44,7 @@ services:
     networks:
       - db
 ```
-Для postgres 14 прописан порт 6432 для внешнего подключения через DBeaver, для prometheus порт 9090. Для volumes созданы папки postgres и prometheus  (Для prometheus yml сразу помещен в папку)
+Для postgres 14 прописан порт 6432 для внешнего подключения через DBeaver, для prometheus порт 9090. Для volumes созданы папки postgres и prometheus  (prometheus yml сразу помещен в папку)
 
 **prometheus.yml**
 ```yml
