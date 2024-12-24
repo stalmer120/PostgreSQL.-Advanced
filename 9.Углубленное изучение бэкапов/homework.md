@@ -31,7 +31,7 @@ pg1-socket-path=/var/run/postgresql
 repo1-host=srv-pgbackup
 ">/etc/pgbackrest.conf
 ```
-# Вносим глобальные изменения в cat /etc/pgbackrest.conf на srv-pgbackup
+# Вносим глобальные изменения в vi /etc/pgbackrest.conf на srv-pgbackup
 ```
 [global]
 process-max=2
