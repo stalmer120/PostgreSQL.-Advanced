@@ -40,8 +40,8 @@ systemctl start postgresql.service && systemctl status postgresql.service
 ```
 
 ```
-● postgresql@14-main.service - PostgreSQL Cluster 14-main
-   Loaded: loaded (/lib/systemd/system/postgresql@.service; enabled-runtime; vendor preset: enabled)
-   Active: active (running)
-```
+sudo -u postgres pg_lsclusters
+Ver Cluster Port Status Owner    Data directory Log file
+14  main    5432 online postgres /pg_data/data  /var/log/postgresql/postgresql-14-main.log
 
+```
