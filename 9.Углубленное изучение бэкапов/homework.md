@@ -81,8 +81,10 @@ sudo -u pgbackrest pgbackrest --stanza=otus --type=full backup
 ## Примеры
 sudo -u pgbackrest pgbackrest --stanza=otus --log-level-console=info check
 ```
-2024-12-22 19:39:19.317 P00   INFO: check command begin 2.49: --exec-id=178376-68b9503f
- --log-level-console=info --log-level-file=detail
+2024-12-22 19:39:19.317 P00   INFO: check command begin 2.49:
+ --exec-id=178376-68b9503f
+ --log-level-console=info
+ --log-level-file=detail
  --pg1-host=otus --pg1-path=/pg_data/data 
  --pg1-socket-path=/var/run/postgresql 
  --repo1-path=/pgbackrest 
@@ -99,7 +101,8 @@ sudo -u pgbackrest pgbackrest --stanza=otus info
 stanza: otus
     status: ok
     cipher: none    db (current)
-        wal archive min/max (14): 000000010000000000000001/00000001000000000000000D        full backup: 20241221-230001F
+        wal archive min/max (14): 000000010000000000000001/00000001000000000000000D
+        full backup: 20241221-230001F
             timestamp start/stop: 2024-12-21 23:00:01+03 / 2024-12-21 23:00:07+03
             wal start/stop: 000000010000000000000006 / 000000010000000000000007
             database size: 26.2MB, database backup size: 26.2MB
