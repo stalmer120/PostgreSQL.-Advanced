@@ -1,31 +1,12 @@
-# **HW-11 | Parallel cluster**
+# **Массивно параллельные кластера PostgreSQL**
 
-
-
-## **Цель:**
-Развернуть один из вариантов параллельного кластера
-
-
-
-## **Описание/Пошаговая инструкция выполнения домашнего задания:**
-Развернуть Yogabyte или Greenplum в GKE или GCE  
-Потесировать dataset с чикагскими такси  
-Или залить 10Гб данных и протестировать скорость запросов в сравнении с 1 инстансом PostgreSQL  
-Описать что и как делали и с какими проблемами столкнулись  
-
-Задание повышенной сложности*  
-Развернуть оба варианта и протестировать производительность  
-
-
-## **Выполнение ДЗ**
-### **Выбранный план**
 - Развернем Yogabyte и 1 инстанс PostgreSQL
 - Сравним их производительность
 
 
 
-### **Развертывание Yogabyte**
-**Создаем сеть и подсеть**
+### **Yogabyte Deployment**
+**Creating a network and subnet**
 ```
 [root@test2 hw-11]# yc vpc network create --name "otus-net" --description "otus-net"
 id: enphi3n2puv8mqnld9hq
@@ -47,7 +28,7 @@ v4_cidr_blocks:
   - 10.95.111.0/24
 ```
 
-**Создаем VM**
+**Create VM**
 ```
 [root@test2 hw-11]# for i in {1..6}; do yc compute instance create --name yuga$i --hostname yuga$i --cores 4 --memory 8 --core-fraction 20 --preemptible --create-boot-disk size=30G,type=network-ssd,image-folder-id=standard-images,image-family=almalinux-8 --network-interface subnet-name=otus-subnet,nat-ip-version=ipv4 --ssh-key /home/voronov/.ssh/id_rsa.pub --async ; done
 
@@ -64,7 +45,7 @@ v4_cidr_blocks:
 +----------------------+-------+---------------+---------+----------------+--------------+
 ```
 
-**На всех нодах выполняем следующие команды**
+**Run commands on all nodes**
 ```
 [yc-user@yuga1 ~]$ sudo dnf install -y python39 wget
 [yc-user@yuga1 ~]$ sudo alternatives --set python /usr/bin/python3
@@ -78,7 +59,7 @@ v4_cidr_blocks:
 [yc-user@yuga1 ~]$ sudo chown yugabyte:yugabyte /data/yugabyte/
 ```
 
-**На всех нодах выполняем проверку post_install**
+**Check post_install on all nodes**
 ```
 [yc-user@yuga1 ~]$ sudo -u yugabyte /opt/yugabyte/bin/post_install.sh
 OpenSSL binary: /opt/yugabyte/bin/../bin/../bin/openssl
@@ -116,7 +97,7 @@ RSA_Decrypt : (KAT_AsymmetricCipher) : Pass
 INSTALL PASSED
 ```
 
-**На всех нодах выполняем установку сервиса clockbound**
+**install clockbound on all nodes**
 ```
 [yc-user@yuga1 ~]$ sudo bash /opt/yugabyte/bin/configure_clockbound.sh
 
@@ -131,7 +112,7 @@ INSTALL PASSED
            └─8183 /usr/local/bin/clockbound --max-drift-rate 50
 ```
 
-**На всех нодах выполняем рекомендации тюнинга VM**
+**Tuned all nodes**
 ```
 [yc-user@yuga1 ~]$ sudo bash -c 'sysctl vm.swappiness=0 >> /etc/sysctl.conf'
 [yc-user@yuga1 ~]$ sudo sysctl kernel.core_pattern=/home/yugabyte/cores/core_%p_%t_%E
@@ -143,7 +124,7 @@ vm.max_map_count = 262144
 vm.max_map_count = 262144
 ```
 
-**На нодах yuga1,yuga2,yuga3 создаем systemd unit файл для сервиса yugabyte-master**
+**create yugabyte-master.service on all nodes**
 ```
 # /etc/systemd/system/yugabyte-master.service
 [Unit]
@@ -184,7 +165,7 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-**На нодах yuga1,yuga2,yuga3 запускаем сервис yugabyte-master**
+**start yugabyte-master.service on all nodes**
 ```
 [yc-user@yuga1 ~]$ sudo touch /etc/sysconfig/yugabyte_env
 [yc-user@yuga1 ~]$ sudo systemctl daemon-reload
@@ -202,7 +183,7 @@ WantedBy=multi-user.target
            └─8367 /opt/yugabyte/bin/yb-master --fs_data_dirs=/data/yugabyte --master_addresses 10.95.111.37:7100,10.95.111.28:7100,10.95.111.31:7100 --rpc_bind_addresses=10.95.111.37:7100 --webserver_interface=10.95.111.>
 ```
 
-**С ноды yuga1 проверяем статус мастеров**
+**Check status of masters**
 ```
 [yc-user@yuga1 ~]$ /opt/yugabyte/bin/yb-admin --master_addresses 10.95.111.37:7100,10.95.111.28:7100,10.95.111.31:7100 list_all_masters
 Master UUID                      	RPC Host/Port        	State    	Role 	Broadcast Host/Port 
@@ -210,9 +191,8 @@ Master UUID                      	RPC Host/Port        	State    	Role 	Broadcas
 ac025688ee564a4787982ac5d0060acd 	10.95.111.28:7100    	ALIVE    	LEADER 	N/A                 
 4409f72677f5477e84e78cf635d72478 	10.95.111.31:7100    	ALIVE    	FOLLOWER 	N/A  
 ```
-**как видим мастера запустились нормально**
 
-**На всех нодах создаем systemd unit файл для запуска сервиса yugabyte-tserver**
+**Create systemd unit file to start the yugabyte-tserver service**
 ```
 # /etc/systemd/system/yugabyte-tserver.service
 [Unit]
@@ -253,7 +233,7 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-**На всех нодах запускаем сервис yugabyte-tserver**
+**Start yugabyte-tserver service on all nodes**
 ```
 [yc-user@yuga1 ~]$ sudo systemctl daemon-reload
 [yc-user@yuga1 ~]$ sudo systemctl enable yugabyte-tserver.service
@@ -274,7 +254,7 @@ WantedBy=multi-user.target
            └─20855 postgres: stats collector  
 ```
 
-**С ноды yuga1 проверяем статусы yugabyte-tserver**
+**Check status yugabyte-tserver**
 ```
 [yc-user@yuga1 ~]$ /opt/yugabyte/bin/yb-admin --master_addresses 10.95.111.37:7100,10.95.111.28:7100,10.95.111.31:7100 list_all_tablet_servers
 Tablet Server UUID               RPC Host/Port Heartbeat delay Status   Reads/s  Writes/s Uptime   SST total size  SST uncomp size SST #files      Memory   Broadcast Host/Port 
@@ -286,7 +266,7 @@ c5c49c56daa9463da057374c27910616 yuga2.ru-central1.internal:9100 0.05s          
 86bad98858bc45b0a298777e06d3b597 yuga1.ru-central1.internal:9100 0.08s           ALIVE    0.00     0.00     1417     0 B             0 B             0               56.34 MB N/A
 ```
 
-**С ноды yuga1 пробуем подключиться к сервису YugabyteDB и проверяем версию**
+**Connect to the YugabyteDB service and check the version**
 ```
 [yc-user@yuga1 ~]$ /opt/yugabyte/bin/ysqlsh -t -h 127.0.0.1 -p 5433 -U yugabyte -c 'SELECT version()'
  PostgreSQL 11.2-YB-2024.2.0.0-b0 on x86_64-pc-linux-gnu, compiled by clang version 17.0.6 (https://github.com/yugabyte/llvm-project.git 9b881774e40024e901fc6f3d313607b071c08631), 64-bit
@@ -294,8 +274,8 @@ c5c49c56daa9463da057374c27910616 yuga2.ru-central1.internal:9100 0.05s          
 
 
 
-### **Загрузка датасета в Yogabyte**
-**Скачиваем датасет opensky**
+### **Uploading a dataset to Yogabyte**
+**Download dataset opensky**
 ```
 [yc-user@yuga1 ~]$ wget -O- https://zenodo.org/record/5092942 | grep -oP 'https://zenodo.org/records/5092942/files/flightlist_\d+_\d+\.csv\.gz' | xargs wget
 
@@ -331,9 +311,8 @@ c5c49c56daa9463da057374c27910616 yuga2.ru-central1.internal:9100 0.05s          
 -rw-rw-r--. 1 yc-user yc-user 158083429 Jan  6 18:53 flightlist_20210501_20210530.csv.gz
 -rw-rw-r--. 1 yc-user yc-user 174242634 Jan  6 18:53 flightlist_20210601_20210630.csv.gz
 ```
-**все скачанные файлы были распакованы в поддиректорию "./csv"**
 
-**Создаем базу даннных и таблицу дял загрузки датасета**
+**Create DB and table for dataset**
 ```
 yugabyte=# CREATE DATABASE opensky;
 CREATE DATABASE
@@ -365,7 +344,7 @@ opensky=# CREATE TABLE opensky
 CREATE TABLE
 ```
 
-**Устанавливаем инструмент "yb-voyager" от Yugabyte для загрузки датасетов**
+**Install "yb-voyager" **
 ```
 [yc-user@yuga1 ~]$ sudo yum install https://s3.us-west-2.amazonaws.com/downloads.yugabyte.com/repos/reporpms/yb-yum-repo-1.1-0.noarch.rpm
 [yc-user@yuga1 ~]$ sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
@@ -376,13 +355,13 @@ CREATE TABLE
 [yc-user@yuga1 ~]$ sudo yum update
 [yc-user@yuga1 ~]$ sudo yum install yb-voyager
 ```
-**Версия yb-voyager**
+**Version yb-voyager**
 ```
 [yc-user@yuga1 ~]$ yb-voyager version
 GIT_COMMIT_HASH=90233738b503df7497865ba37a52d0bb522780ce
 VERSION=1.8.8
 ```
-**Загрузка датасета opensky в Yugabyte**
+**Download dataset opensky**
 ```
 [yc-user@yuga1 ~]$ yb-voyager import data file --export-dir ./tmp/ --target-db-host 10.95.111.37 --target-db-user yugabyte --target-db-password password --target-db-name opensky --data-dir ./csv/  --file-table-map 'flightlist_*.csv:opensky' --format csv --has-header true
 GIT_COMMIT_HASH=90233738b503df7497865ba37a52d0bb522780ce
@@ -402,13 +381,11 @@ public	opensky	66010794
 
 
 Import data complete.
-```
-**Длительность загрузки составила 1h16m**
-```
+
 2025-01-07 13:16:37.783377 INFO common.go:80 Time taken: 1h16m54.995359417s (4615.00 seconds)
 ```
 
-**Проверка загрузка датасета opensky в Yugabyte**
+**verification of uploading**
 ```
 [yc-user@yuga1 ~]$ yb-voyager import data status --export-dir ./tmp/
 Import Data Status for TargetDB
@@ -446,7 +423,7 @@ public."opensky"	flightlist_20210501_20210530.csv	DONE  	431.75 MiB	431.75 MiB  
 public."opensky"	flightlist_20210601_20210630.csv	DONE  	478.05 MiB	478.05 MiB   	100.00  
 ```
 
-**Проверка размеров директории с данными на инстансах YugabyteDB после загрузки датасета**
+**Checking the size of the data directory**
 ```
 [root@test2 hw-11]# for ii in 158.160.49.37 158.160.50.55 51.250.13.59 89.169.150.171 130.193.51.102 89.169.142.204 ; do ssh yc-user@${ii} sudo du -sh /data ; done 
 Warning: Permanently added '158.160.49.37' (ED25519) to the list of known hosts.
@@ -462,7 +439,7 @@ Warning: Permanently added '130.193.51.102' (ED25519) to the list of known hosts
 Warning: Permanently added '89.169.142.204' (ED25519) to the list of known hosts.
 6.0G	/data
 ```
-**Почти тоже самое можно увидеть в статусах tablet_servers**
+**list all tablet_servers**
 ```
 [yc-user@yuga1 ~]$ /opt/yugabyte/bin/yb-admin --master_addresses 10.95.111.37:7100,10.95.111.28:7100,10.95.111.31:7100 list_all_tablet_servers
 Tablet Server UUID               RPC Host/Port Heartbeat delay Status   Reads/s  Writes/s Uptime   SST total size  SST uncomp size SST #files      Memory   Broadcast Host/Port 
@@ -476,22 +453,22 @@ c5c49c56daa9463da057374c27910616 yuga2.ru-central1.internal:9100 0.53s          
 
 
 
-###**Запускаем аналитические запросы в YugabyteDB**
-- **Общее кол-во полетов**
+###**Running analytical queries in YugabyteDB**
+- **Total number of flights**
 ```
 opensky=# select count(*) from opensky;
  66010794
 
 Time: 16467.666 ms (00:16.468)
 ```
-- **Кол-во полетов "callsign IN ('UUEE', 'UUDD', 'UUWW')"**
+- **Number of flights "callsign IN ('UUEE', 'UUDD', 'UUWW')"**
 ```
 opensky=# SELECT COUNT(*) FROM opensky WHERE callsign IN ('UUEE', 'UUDD', 'UUWW');
     14
 
 Time: 77963.198 ms (01:17.963)
 ```
-**ТОП 10 аэропортов с максимальным кол-вом полетов**
+**Top 10 airports with max number of flights**
 ```
 opensky=# SELECT origin, COUNT(*) AS c FROM opensky WHERE origin != '' GROUP BY origin ORDER BY c DESC limit 10;
  KORD   | 745007
@@ -508,8 +485,8 @@ opensky=# SELECT origin, COUNT(*) AS c FROM opensky WHERE origin != '' GROUP BY 
 Time: 45007.615 ms (00:45.008)
 ```
 
-###**Тестируем производительность YugabyteDB используя pgbench**
-**Создаем тестовую бд pgbench**
+###**Testing YugabyteDB performance using pgbench**
+**Create a test DB pgbench**
 ```
 [root@test2 hw-11]# pgbench -h 127.0.0.1 -p 5433 -U yugabyte  -s 100 -i pgbench
 dropping old tables...
@@ -542,20 +519,7 @@ DETAIL:  Concurrent DMLs may not be reflected in the new table.
 HINT:  See https://github.com/yugabyte/yugabyte-db/issues/19860. Set 'ysql_suppress_unsafe_alter_notice' yb-tserver gflag to true to suppress this notice.
 done in 1023.79 s (drop tables 0.08 s, create tables 2.63 s, client-side generate 357.95 s, vacuum 22.42 s, primary keys 640.71 s).
 ```
-**Запускаем несколько раз pgbench**
-```
-[root@test2 hw-11]# pgbench -h 127.0.0.1 -p 5433 -U yugabyte -c 50 -j 4 -T 120 -r --no-vacuum pgbench
-...
-...
-...
-pgbench: error: client 36 script 0 aborted in command 8 query 0: ERROR:  could not serialize access due to concurrent update (query layer retry isn't possible because data was already sent, if this is the read committed isolation (or) the first statement in repeatable read/ serializable isolation transaction, consider increasing the tserver gflag ysql_output_buffer_size)
-DETAIL:  Conflict with concurrently committed data. Value write after transaction start: doc ht ({ physical: 1736274471551960 logical: 8 }) >= read time ({ physical: 1736274471417358 }): kConflict
-transaction type: <builtin: TPC-B (sort of)>
-pgbench: fatal: Run was aborted; the above results are incomplete.
-```
-**все тесты падали с одинаковыми ошибками**
-
-**Запускаем несколько раз pgbench в режиме select-only**
+**pgbench select-only**
 ```
 [root@test2 hw-11]# pgbench -h 127.0.0.1 -p 5433 -U yugabyte -c 50 -j 4 -T 120 -r --select-only --no-vacuum pgbench
 pgbench (14.3, server 11.2-YB-2024.2.0.0-b0)
@@ -573,16 +537,9 @@ statement latencies in milliseconds:
          0.003  \set aid random(1, 100000 * :scale)
         41.047  SELECT abalance FROM pgbench_accounts WHERE aid = :aid;
 ```
-**получли статистику pgbench для YugabyteDB, но только для режима select-only**
+### **Install single Postgres instance**
 
-
-
-
-### **Установка одного инстанса Postgres**
-Для тестирование Postgres будем использовать ноду yuga1,   
-предварительно остановив на ней сервисы YugabyteDB.
-
-**Установка пакетов postgresql**
+**install postgresql16-server**
 ```
 [root@yuga1 yc-user]# dnf update -y
 [root@yuga1 yc-user]# dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
@@ -590,7 +547,7 @@ statement latencies in milliseconds:
 [root@yuga1 yc-user]# dnf install postgresql16-server postgresql16-contrib
 ```
 
-**Инициализируем БД и стартуем сервис**
+**initdb and start service**
 ```
 [root@yuga1 yc-user]# /usr/pgsql-16/bin/postgresql-16-setup initdb
 [root@yuga1 yc-user]# systemctl enable postgresql-16
@@ -614,110 +571,8 @@ statement latencies in milliseconds:
            └─10998 postgres: logical replication launcher 
 ```
 
-**Настраиваем tuned**
+**Tuned**
 ```
-[root@yuga1 yc-user]# mkdir /usr/lib/tuned/postgresql/
-[root@yuga1 yc-user]# vi /usr/lib/tuned/postgresql/tuned.conf
-
-[root@yuga1 yc-user]# cat /usr/lib/tuned/postgresql/tuned.conf
-[main]
-summary=Optimize for PostgreSQL RDBMS
-include=throughput-performance
-[sysctl]
-vm.swappiness = 5
-vm.dirty_background_ratio = 10
-vm.dirty_ratio = 40
-vm.dirty_expire_centisecs = 3000
-vm.dirty_writeback_centisecs = 500
-kernel.shmmax = 18446744073692700000
-kernel.shmall = 18446744073692700000
-kernel.shmmni = 4096
-kernel.sem = 250 512000 100 2048
-fs.file-max = 312139770
-fs.aio-max-nr = 1048576
-net.ipv4.ip_local_port_range = 2048 65499
-# Permits sockets in the time-wait state to be reused for new connections:
-net.ipv4.tcp_tw_reuse = 1
-net.core.netdev_budget = 1024
-net.core.netdev_max_backlog = 2048
-net.core.rmem_default = 262144
-net.core.rmem_max = 4194304
-net.core.wmem_default = 262144
-net.core.wmem_max = 1048576
-kernel.panic_on_oops = 1
-# We don't need NUMA balancing in this box:
-kernel.numa_balancing = 0
-# Used if not defined by the service:
-net.core.somaxconn = 4096
-# Other parameters to override throughput-performance template
-net.ipv4.tcp_rmem = 4096 87380 16777216
-net.ipv4.tcp_wmem = 4096 65536 16777216
-net.ipv4.tcp_window_scaling = 1
-net.netfilter.nf_conntrack_max = 250000
-net.ipv4.tcp_max_syn_backlog=4096
-[vm]
-transparent_hugepages=never
-
-[root@yuga1 yc-user]# restorecon -RFvv /usr/lib/tuned/postgresql
-Relabeled /usr/lib/tuned/postgresql from unconfined_u:object_r:lib_t:s0 to system_u:object_r:lib_t:s0
-Relabeled /usr/lib/tuned/postgresql/tuned.conf from unconfined_u:object_r:lib_t:s0 to system_u:object_r:lib_t:s0
-
-[root@yuga1 yc-user]# tuned-adm list | grep postgre
-- postgresql                  - Optimize for PostgreSQL RDBMS
-[root@yuga1 yc-user]# tuned-adm profile postgresql
-[root@yuga1 yc-user]# tuned-adm active
-Current active profile: postgresql
-```
-
-
-**Увеличиваем лимиты для пользователя postgres**   
-в systed юните:
-```
-[root@yuga1 yc-user]# vi /usr/lib/systemd/system/postgresql-16.service
-[root@yuga1 yc-user]# grep -B 6 ^Limit /usr/lib/systemd/system/postgresql-16.service
-[Service]
-Type=notify
-
-User=postgres
-Group=postgres
-
-LimitAS=infinity
-LimitRSS=infinity
-LimitCORE=infinity
-LimitNOFILE=500000
-LimitNOPROC=500000
-```
-а также в /etc/security/limits.d/30-pgsqlproc.conf
-```
-[root@yuga1 vagrant]# vi /etc/security/limits.d/30-pgsqlproc.conf
-[root@yuga1 vagrant]# cat /etc/security/limits.d/30-pgsqlproc.conf 
-* soft nofile 500000
-* hard nofile 500000
-root soft nofile 500000
-root hard nofile 500000
-postgres soft nofile 500000
-postgres hard nofile 500000
-```
-**Восстанавливаем правила selinux**
-```
-[root@yuga1 yc-user]# restorecon -Fvv /etc/security/limits.d/30-pgsqlproc.conf
-Relabeled /etc/security/limits.d/30-pgsqlproc.conf from unconfined_u:object_r:etc_t:s0 to system_u:object_r:etc_t:s0
-```
-
-**Используя https://www.pgconfig.org и входные параметры:**
-```
-num_cpu=4
-total_mem=8G
-max_conn=100
-postgres_version=16
-storage=ssd
-profile=dw
-```
-
-**Формируем параметры для postgresql.conf**
-```
-# Generated by PGConfig 3.1.4 (1fe6d98dedcaad1d0a114617cfd08b4fed1d8a01)
-# https://api.pgconfig.org/v1/tuning/get-config?format=conf&&log_format=csvlog&max_connections=100&pg_version=16&environment_name=DW&total_ram=8GB&cpus=4&drive_type=SSD&arch=x86-64&os_type=linux
 
 # Memory Configuration
 shared_buffers = 2GB
@@ -743,41 +598,11 @@ effective_io_concurrency = 200
 max_worker_processes = 8
 max_parallel_workers_per_gather = 2
 max_parallel_workers = 2
-```
 
-**Перегружаем VM**
 ```
-[root@yuga1 yc-user]# reboot
-Connection to 130.193.51.102 closed by remote host.
-Connection to 130.193.51.102 closed.
+### **Upload dataset opensky**
+**Create DB, Table :**
 ```
-
-**Проверяем настройки**
-```
-[root@yuga1 yc-user]# sysctl -a | grep vm.swappiness
-vm.swappiness = 5
-[root@yuga1 yc-user]# 
-[root@yuga1 yc-user]# sudo -u postgres psql -c 'SHOW shared_buffers'
- shared_buffers 
-----------------
- 2GB
-(1 row)
-
-[root@yuga1 yc-user]# 
-[root@yuga1 yc-user]# sudo -u postgres psql -c 'SHOW effective_cache_size'
- effective_cache_size 
-----------------------
- 6GB
-(1 row)
-```
-
-
-### **Загрузка датасета opensky в Postgres**
-**Создаем БД и таблицу :**
-```
-bash-4.4$ /usr/pgsql-16/bin/psql
-psql (16.6)
-Type "help" for help.
 
 postgres=# CREATE DATABASE opensky;
 CREATE DATABASE
@@ -809,11 +634,9 @@ opensky=# CREATE TABLE opensky
     longitude_2 NUMERIC,
     altitude_2 NUMERIC
 );
-CREATE TABLE
-opensky=#
 ```
 
-**Загружаем данные в таблицу opensky**
+**Load the data into opensky table**
 ```
 [postgres@yuga1 csv]$ for ii in flightlist_2019* flightlist_2020* flightlist_2021* ; do echo ${ii} ; cat ${ii} | /usr/pgsql-16/bin/psql -d opensky -U postgres -c "COPY opensky from stdin with delimiter ',' CSV HEADER" ; done
 flightlist_20190101_20190131.csv
@@ -877,9 +700,7 @@ COPY 2278298
 flightlist_20210601_20210630.csv
 COPY 2540487
 ```
-**Продолжительность загрузки составила 35 минут**
-
-**Проверяем объем БД**
+**pg_size_pretty**
 ```
 opensky=# select pg_size_pretty(pg_database_size('opensky'));
  pg_size_pretty 
@@ -888,9 +709,9 @@ opensky=# select pg_size_pretty(pg_database_size('opensky'));
 (1 row)
 ```
 
-### **Запускаем аналитические запросы в Postgres**
+### **Running analytical queries in Postgres**
 
-- **Общее кол-во полетов**
+- **Total number of flights**
 ```
 opensky=# \timing on
 Timing is on.
@@ -902,7 +723,7 @@ opensky=# SELECT COUNT(*) FROM opensky;
 
 Time: 289492.005 ms (04:49.492)
 ```
-- **Кол-во полетов "callsign IN ('UUEE', 'UUDD', 'UUWW')"**
+- **Number of flights "callsign IN ('UUEE', 'UUDD', 'UUWW')"**
 ```
 opensky=# SELECT COUNT(*) FROM opensky WHERE callsign IN ('UUEE', 'UUDD', 'UUWW');
  count 
@@ -912,7 +733,7 @@ opensky=# SELECT COUNT(*) FROM opensky WHERE callsign IN ('UUEE', 'UUDD', 'UUWW'
 
 Time: 286825.770 ms (04:46.826)
 ```
-- **ТОП 10 аэропортов с максимальным кол-вом полетов**
+- **Тop 10 airports with max number of flights**
 ```
 opensky=# SELECT origin, COUNT(*) AS c FROM opensky WHERE origin != '' GROUP BY origin ORDER BY c DESC limit 10;
  origin |    c     
@@ -932,8 +753,8 @@ opensky=# SELECT origin, COUNT(*) AS c FROM opensky WHERE origin != '' GROUP BY 
 Time: 288593.289 ms (04:48.593)
 ```
 
-### **Проверка производительности Postgres**
-**Создаем бд для pgbench**
+### **Testing Postgres performance using pgbench**
+**create DB pgbench**
 ```
 opensky=# create database pgbench;
 CREATE DATABASE
@@ -953,7 +774,7 @@ vacuuming...
 creating primary keys...
 done in 91.19 s (drop tables 0.00 s, create tables 0.02 s, client-side generate 59.80 s, vacuum 2.43 s, primary keys 28.94 s).
 ```
-**Несколько раз запускаем pgbench и выбираем лучший результат**
+**Start pgbench**
 ```
 [postgres@yuga1 ~]$ /usr/pgsql-16/bin/pgbench -c 50 -j 4 -r -T 120 pgbench
 pgbench (16.6)
@@ -983,7 +804,7 @@ statement latencies in milliseconds and failures:
          0.585           0  INSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (:tid, :bid, :aid, :delta, CURRENT_TIMESTAMP);
         11.716           0  END;
 ```
-**Несколько раз запускаем pgbench в режиме select-only и выбираем лучший результат**
+**Start pgbench select-only**
 ```
 [postgres@yuga1 ~]$ /usr/pgsql-16/bin/pgbench -c 50 -j 4 -r -T 120 --select-only pgbench
 pgbench (16.6)
@@ -1005,29 +826,25 @@ statement latencies in milliseconds and failures:
          1.472           0  SELECT abalance FROM pgbench_accounts WHERE aid = :aid;
 ```
 
-## **Сравнение результатов**
-Результаты тестирования сведены в таблицу:
-|                                                       |**Postgres**|**YugabyteDB**|
-|-------------------------------------------------------|------------|--------------|
-|**BENCH_RW** number of transactions actually processed | 305742     |  -           |
-|**BENCH_RW** latency average                           | 19.657 ms  |  -           |
-|**BENCH_RW** initial connection time                   | 62.886 ms  |  -           |
-|**BENCH_RW** tps (without initial connection time)     | 2543       |  -           |
-|                                                       |            |              |
-|**BENCH_RO** number of transactions actually processed | 3921733    | 144220       |
-|**BENCH_RO** latency average                           | 1.531 ms   | 40.917 ms    |
-|**BENCH_RO** initial connection time                   | 77.431 ms  | 2009.740 ms  |
-|**BENCH_RO** tps (without initial connection time)     | 32665      | 1222         |
-|                                                       |            |              |
-| Общее кол-во полетов                                  | 289492 ms  | 16467 ms     |
-| Кол-во полетов "callsign IN ('UUEE', 'UUDD', 'UUWW')" | 286825 ms  | 77963 ms     |
-| ТОП 10 аэропортов с максимальным кол-вом полетов      | 288593 ms  | 45007 ms     |
+## **Postgres VS YugabyteDB**
+
+|                                                          |**Postgres**|**YugabyteDB**|
+|----------------------------------------------------------|------------|--------------|
+|**BENCH_RW** number of transactions actually processed    | 305742     |  -           |
+|**BENCH_RW** latency average                              | 19.657 ms  |  -           |
+|**BENCH_RW** initial connection time                      | 62.886 ms  |  -           |
+|**BENCH_RW** tps (without initial connection time)        | 2543       |  -           |
+|                                                          |            |              |
+|**BENCH_RO** number of transactions actually processed    | 3921733    | 144220       |
+|**BENCH_RO** latency average                              | 1.531 ms   | 40.917 ms    |
+|**BENCH_RO** initial connection time                      | 77.431 ms  | 2009.740 ms  |
+|**BENCH_RO** tps (without initial connection time)        | 32665      | 1222         |
+|                                                          |            |              |
+| Total number of flights                                  | 289492 ms  | 16467 ms     |
+| number of flights "callsign IN ('UUEE', 'UUDD', 'UUWW')" | 286825 ms  | 77963 ms     |
+| Тop 10 airports with max number of flights               | 288593 ms  | 45007 ms     |
 
 
-**Выводы:**
-- Postgres значительно выигрывает у YugabyteDB при OLTP нагрузке  
-  это было ожидаемо, т.к. у Postgres нет необходимости обеспечивать распределенный ACID
-- OLTP тесты BENCH_RW с YugabyteDB падали с ошибками конфликта транзакций  
-  возможно требуется доработка со стороны тестируемого стенда
-- При тестировании OLAP нагрузки YugabyteDB значительно выигрывает у Postgres,    
-  что было ожидаемо т.к. у YugabyteDB есть возможность распределять запросы на несколько нод
+**Result:**
+- OLTP Postgres win  
+- OLAP YugabyteDB win
