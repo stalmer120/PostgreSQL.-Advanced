@@ -344,7 +344,7 @@ opensky=# CREATE TABLE opensky
 CREATE TABLE
 ```
 
-**Install "yb-voyager" **
+**Install "yb-voyager"**
 ```
 [yc-user@yuga1 ~]$ sudo yum install https://s3.us-west-2.amazonaws.com/downloads.yugabyte.com/repos/reporpms/yb-yum-repo-1.1-0.noarch.rpm
 [yc-user@yuga1 ~]$ sudo yum install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
@@ -453,7 +453,7 @@ c5c49c56daa9463da057374c27910616 yuga2.ru-central1.internal:9100 0.53s          
 
 
 
-###**Running analytical queries in YugabyteDB**
+### **Running analytical queries in YugabyteDB**
 - **Total number of flights**
 ```
 opensky=# select count(*) from opensky;
@@ -601,7 +601,7 @@ max_parallel_workers = 2
 
 ```
 ### **Upload dataset opensky**
-**Create DB, Table :**
+**Create DB, Table**
 ```
 
 postgres=# CREATE DATABASE opensky;
