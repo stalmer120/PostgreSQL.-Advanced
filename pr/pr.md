@@ -11,7 +11,7 @@
 Необходимо рассмотреть схемы построения.  
 2.1. В 1 ЦОД помещаем 2 ноды во второй ЦОД 1 ноду синхронную или асинхронную.  
 Синхронная нода.  
-![Distributed-cap](https://github.com/stalmer120/NoSQL/blob/main/png/CAP.drawio.png)  
+![patroni1](https://github.com/stalmer120/PostgreSQL.-Advanced/blob/3f6cf1849ce77d64b362900e1432281194910b1b/pr/HA%20cluster%20patroni%202.png)  
 Достоинсва:  
 - Авто failover
 - RPO = 0
@@ -20,7 +20,7 @@
 - Ложное переключение.  
 - Нет высокой доступности в ЦОД 2.  
 Асинхронная нода.  
-![Distributed-cap](https://github.com/stalmer120/NoSQL/blob/main/png/CAP.drawio.png)  
+![patroni3](https://github.com/stalmer120/PostgreSQL.-Advanced/blob/3f6cf1849ce77d64b362900e1432281194910b1b/pr/HA%20cluster%20patroni%201.png)  
 Достоинсва:  
 - Авто failover
 - Нет деградации  
@@ -29,7 +29,7 @@
 - Нет высокой доступности в ЦОД 2.  
 - RPO > 0  
 2.2 В 1 ЦОД полноценная 3-х нодовая конфигурация, во втором ЦОД асинхроная реплика. 
-![Distributed-cap](https://github.com/stalmer120/NoSQL/blob/main/png/CAP.drawio.png)  
+![patroni2](https://github.com/stalmer120/PostgreSQL.-Advanced/blob/3704894ee94dd71f0ca1ceff1e9ce1e8c3e4207a/pr/HA%20cluster%20patroni%204.png)  
 Достоинсва:  
 - Высокая доступность в 1 ЦОД
 - Нет ложных срабатываний
@@ -38,12 +38,11 @@
 - Нет высокой доступности в 2 ЦОД  
 - Ручное переключение.  
 2.3 В 1 ЦОД полноценная 3-х нодовая конфигурация, в 2 ЦОД полноценная 3-х нодовая конфигурация. 
-![Distributed-cap](https://github.com/stalmer120/NoSQL/blob/main/png/CAP.drawio.png)  
+![patroni3](https://github.com/stalmer120/PostgreSQL.-Advanced/blob/3f6cf1849ce77d64b362900e1432281194910b1b/pr/HA%20cluster%20patroni%203.png)  
 Достоинсва:  
 - Высокая доступность в 1 ЦОД и 2 ЦОД
 - Нет деградации.
-- Нет ложных срабатываний.
-- 
+- Нет ложных срабатываний.  
 Проблемы:  
 - RPO > 0 
 - Ручное переключение.  
